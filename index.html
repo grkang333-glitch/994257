@@ -225,6 +225,18 @@
     opacity: 0.5;
   }
   .chip-x:hover { opacity: 1; }
+  .condition-add-toggle {
+    background: none;
+    border: 0;
+    font-size: 11px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    padding: 1px 7px;
+    margin-left: 2px;
+    text-decoration: underline;
+  }
+  .condition-add-toggle:hover { color: var(--cond); }
   .condition-custom {
     font-size: 11px;
     padding: 2px 9px;
@@ -489,6 +501,7 @@
   const SAVE_DEBOUNCE_MS = 1500;
   const REFRESH_INTERVAL_MS = 60000;
   const DEFAULT_CANDIDATES = ["집에 가서", "출근길에", "퇴근길에", "출근 전에", "주말에", "임동민이랑", "2번방에서"];
+  const BUILTIN_API_URL = "https://script.google.com/macros/s/AKfycbzk6OymKhctGcjHIypCeQRX26Ekn-aAz1dzKldTBsJslHFCHKBsr35Z8PFc4PkjV1fefw/exec";
   const DEFAULT_STATE = {
     items: [],
     hideDone: { now: false, conditional: false, split: false }
@@ -500,6 +513,7 @@
   let saveTimer = null;
   let inFlight = false;
   let queuedSave = false;
+  const expandedConditionAddRows = new Set();
 
   function load() {
     try {
@@ -516,6 +530,8 @@
   }
   function migrateItems(items) {
     items.forEach(it => {
+      if (it.bucket === "now" && it.deadline) it.deadline = "";
+      if (it.completedAt === undefined) it.completedAt = null;
       if (Array.isArray(it.conditions)) return;
       if (typeof it.condition === "string" && it.condition) {
         if (it.condition.trim().startsWith("[")) {
@@ -534,6 +550,7 @@
     let s = {};
     try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch {}
     if (!Array.isArray(s.conditionCandidates)) s.conditionCandidates = [...DEFAULT_CANDIDATES];
+    if (s.apiUrl === undefined) s.apiUrl = BUILTIN_API_URL;
     return s;
   }
   function saveSettings() {
@@ -565,11 +582,18 @@
       id: it.id, text: it.text, done: it.done, deadline: it.deadline,
       bucket: it.bucket, parentId: it.parentId, childIds: it.childIds,
       createdAt: it.createdAt,
+      completedAt: it.completedAt || null,
       condition: JSON.stringify(it.conditions || [])
     }));
   }
   function itemsFromRemote(items) {
     items.forEach(it => {
+      if (it.bucket === "now" && it.deadline) it.deadline = "";
+      if (it.completedAt === undefined) it.completedAt = null;
+      if (typeof it.completedAt === "string" && it.completedAt) {
+        const t = Date.parse(it.completedAt);
+        it.completedAt = isNaN(t) ? null : t;
+      }
       if (typeof it.condition === "string") {
         if (it.condition.trim().startsWith("[")) {
           try { it.conditions = JSON.parse(it.condition); }
@@ -681,10 +705,11 @@
       done: false,
       deadline: "",
       bucket: "inbox",
-      condition: "",
+      conditions: [],
       parentId,
       childIds: [],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      completedAt: null
     };
     state.items.push(item);
     if (parentId) {
@@ -697,12 +722,16 @@
     const it = state.items.find(i => i.id === id);
     if (!it) return;
     it.bucket = bucket;
+    if (bucket === "now" && it.deadline) it.deadline = "";
     save(); render();
   }
   function toggleDone(id) {
     const it = state.items.find(i => i.id === id);
     if (!it) return;
+    const wasDone = it.done;
     it.done = !it.done;
+    if (it.done && !wasDone) it.completedAt = Date.now();
+    else if (!it.done) it.completedAt = null;
     save(); render();
   }
   function setText(id, text) {
@@ -809,20 +838,26 @@
   function renderConditionsArea(it) {
     const selected = Array.isArray(it.conditions) ? it.conditions : [];
     const candidates = (settings.conditionCandidates || []).filter(c => !selected.includes(c));
+    const hasSelected = selected.length > 0;
+    const addExpanded = !hasSelected || expandedConditionAddRows.has(it.id);
     let html = `<div class="conditions-area">`;
-    if (selected.length) {
+    if (hasSelected) {
       html += `<div class="conditions-row"><span class="conditions-label">선택됨</span>`;
       selected.forEach(c => {
         html += `<span class="chip selected">${escapeHtml(c)}<button class="chip-x" data-act="remove-condition" data-value="${escapeAttr(c)}" title="제거">×</button></span>`;
       });
+      html += `<button type="button" class="condition-add-toggle" data-act="toggle-add">${addExpanded ? "− 닫기" : "+ 추가"}</button>`;
       html += `</div>`;
     }
-    html += `<div class="conditions-row"><span class="conditions-label">추가</span>`;
-    candidates.forEach(c => {
-      html += `<button type="button" class="chip candidate" data-act="add-condition" data-value="${escapeAttr(c)}">${escapeHtml(c)}</button>`;
-    });
-    html += `<input type="text" class="condition-custom" data-act="condition-custom" placeholder="직접 입력 +" autocomplete="off">`;
-    html += `</div></div>`;
+    if (addExpanded) {
+      html += `<div class="conditions-row"><span class="conditions-label">추가</span>`;
+      candidates.forEach(c => {
+        html += `<button type="button" class="chip candidate" data-act="add-condition" data-value="${escapeAttr(c)}">${escapeHtml(c)}</button>`;
+      });
+      html += `<input type="text" class="condition-custom" data-act="condition-custom" placeholder="직접 입력 +" autocomplete="off">`;
+      html += `</div>`;
+    }
+    html += `</div>`;
     return html;
   }
 
@@ -842,11 +877,11 @@
       </div>
       ${childCount ? `<div class="child-mark">↳ ${childCount}개로 쪼개짐</div>` : ""}
       ${it.bucket === "conditional" ? renderConditionsArea(it) : ""}
-      <div class="meta">
+      ${it.bucket !== "now" ? `<div class="meta">
         <input type="datetime-local" value="${it.deadline || ""}" data-act="deadline">
         ${dl ? `<span class="deadline-label ${dl.overdue ? "overdue" : ""}">${escapeHtml(dl.text)}</span>` : ""}
         ${it.deadline ? `<button class="clear-deadline" data-act="clear-deadline" style="background:none;border:0;color:#999;cursor:pointer;font-size:11px;">지우기</button>` : ""}
-      </div>
+      </div>` : ""}
       <div class="actions">
         ${it.bucket !== "now" ? `<button data-move="now">→ 당장</button>` : ""}
         ${it.bucket !== "conditional" ? `<button data-move="conditional">→ 조건</button>` : ""}
@@ -866,8 +901,10 @@
     });
 
     const dlInput = el.querySelector('[data-act="deadline"]');
-    dlInput.addEventListener("input", (e) => setDeadline(it.id, e.target.value));
-    dlInput.addEventListener("change", (e) => setDeadline(it.id, e.target.value));
+    if (dlInput) {
+      dlInput.addEventListener("input", (e) => setDeadline(it.id, e.target.value));
+      dlInput.addEventListener("change", (e) => setDeadline(it.id, e.target.value));
+    }
     const clearBtn = el.querySelector('[data-act="clear-deadline"]');
     if (clearBtn) clearBtn.addEventListener("click", () => setDeadline(it.id, ""));
 
@@ -877,6 +914,14 @@
     el.querySelectorAll('[data-act="remove-condition"]').forEach(b =>
       b.addEventListener("click", () => removeItemCondition(it.id, b.dataset.value))
     );
+    const addToggleBtn = el.querySelector('[data-act="toggle-add"]');
+    if (addToggleBtn) {
+      addToggleBtn.addEventListener("click", () => {
+        if (expandedConditionAddRows.has(it.id)) expandedConditionAddRows.delete(it.id);
+        else expandedConditionAddRows.add(it.id);
+        render();
+      });
+    }
     const customInput = el.querySelector('[data-act="condition-custom"]');
     if (customInput) {
       customInput.addEventListener("keydown", (e) => {
@@ -964,7 +1009,7 @@
       if (items.length === 0) {
         const e = document.createElement("div");
         e.className = "empty";
-        e.textContent = total > 0 ? "(완료된 항목이 접혀있음)" : "비어있음";
+        e.textContent = total > 0 ? "(완료된 항목이 접혀있음)" : "비어 있음";
         list.appendChild(e);
       } else {
         items.forEach(it => list.appendChild(renderItem(it)));
