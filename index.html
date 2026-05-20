@@ -2,6 +2,8 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f7f7f8">
 <title>할 일 처리기</title>
 <style>
   :root {
@@ -430,6 +432,70 @@
     font-family: monospace;
   }
   .sync-config[hidden] { display: none; }
+
+  /* Tablet */
+  @media (max-width: 900px) {
+    body { padding: 14px; }
+    .columns { gap: 10px; }
+  }
+
+  /* Phone */
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    h1 { font-size: 17px; margin-bottom: 10px; }
+    .sync-bar {
+      padding: 7px 10px;
+      gap: 6px;
+      font-size: 11px;
+    }
+    .sync-status {
+      min-width: 100%;
+      flex-basis: 100%;
+      order: -1;
+      margin-bottom: 2px;
+    }
+    .sync-bar button {
+      padding: 6px 10px;
+      font-size: 12px;
+      flex: 1;
+    }
+    .sync-config input {
+      min-width: 100%;
+      font-size: 12px;
+    }
+    .panel { padding: 10px; border-radius: 8px; }
+    .panel.inbox { margin-bottom: 10px; }
+    .panel-head h2 { font-size: 13px; }
+    .add-row input { padding: 9px 10px; font-size: 14px; }
+    .add-row button { padding: 9px 14px; font-size: 14px; }
+    .item { padding: 10px; font-size: 14px; }
+    .item input[type=checkbox] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+    }
+    .text { line-height: 1.45; min-height: 22px; }
+    .child-mark { margin: 6px 0 0 0; }
+    .parent-context { font-size: 12px; }
+    .actions { margin: 8px 0 0 0; gap: 5px; }
+    .actions button { padding: 5px 11px; font-size: 12px; }
+    .meta { margin: 8px 0 0 0; gap: 6px; }
+    .meta input[type=datetime-local] { font-size: 13px; padding: 5px 7px; }
+    .deadline-label.overdue { font-size: 12px; }
+    .conditions-area { margin: 8px 0 0 0; padding: 8px; }
+    .chip, .chip.candidate, .chip.selected {
+      padding: 4px 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .chip-x { font-size: 15px; padding: 0 2px; }
+    .condition-custom { width: 110px; font-size: 12px; padding: 4px 10px; }
+    .condition-add-toggle { font-size: 12px; padding: 4px 8px; }
+    .candidates-panel-toggle { padding: 6px 0; font-size: 12px; }
+    .candidates-panel { padding: 8px; }
+    .candidate-add-row input { font-size: 13px; padding: 6px 8px; }
+    .candidate-add-row button { font-size: 13px; padding: 6px 12px; }
+  }
 </style>
 </head>
 <body>
