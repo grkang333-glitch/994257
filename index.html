@@ -693,6 +693,19 @@
   const SAVE_DEBOUNCE_MS = 1500;
   const REFRESH_INTERVAL_MS = 60000;
   const DEFAULT_CANDIDATES = ["집에 가서", "출근길에", "퇴근길에", "출근 전에", "주말에", "임동민이랑", "2번방에서"];
+  const CONDITION_EMOJI = {
+    "집에 가서": "🏠",
+    "출근길에": "🚌",
+    "퇴근길에": "🚌",
+    "출근 전에": "☀️",
+    "주말에": "🛋️",
+    "임동민이랑": "👥",
+    "2번방에서": "🪑"
+  };
+  function displayCondition(text) {
+    const e = CONDITION_EMOJI[text];
+    return e ? `${e} ${text}` : text;
+  }
   const BUILTIN_API_URL = "https://script.google.com/macros/s/AKfycbzk6OymKhctGcjHIypCeQRX26Ekn-aAz1dzKldTBsJslHFCHKBsr35Z8PFc4PkjV1fefw/exec";
   const PRAISES = [
     "잘했어!", "역시!", "최고야", "굿!", "오 좋아",
@@ -1113,7 +1126,7 @@
     if (hasSelected) {
       html += `<div class="conditions-row"><span class="conditions-label">선택됨</span>`;
       selected.forEach(c => {
-        html += `<span class="chip selected">${escapeHtml(c)}<button class="chip-x" data-act="remove-condition" data-value="${escapeAttr(c)}" title="제거">×</button></span>`;
+        html += `<span class="chip selected">${escapeHtml(displayCondition(c))}<button class="chip-x" data-act="remove-condition" data-value="${escapeAttr(c)}" title="제거">×</button></span>`;
       });
       html += `<button type="button" class="condition-add-toggle" data-act="toggle-add">${addExpanded ? "− 닫기" : "+ 추가"}</button>`;
       html += `</div>`;
@@ -1121,7 +1134,7 @@
     if (addExpanded) {
       html += `<div class="conditions-row"><span class="conditions-label">추가</span>`;
       candidates.forEach(c => {
-        html += `<button type="button" class="chip candidate" data-act="add-condition" data-value="${escapeAttr(c)}">${escapeHtml(c)}</button>`;
+        html += `<button type="button" class="chip candidate" data-act="add-condition" data-value="${escapeAttr(c)}">${escapeHtml(displayCondition(c))}</button>`;
       });
       html += `<input type="text" class="condition-custom" data-act="condition-custom" placeholder="직접 입력 +" autocomplete="off">`;
       html += `</div>`;
@@ -1248,7 +1261,7 @@
     cands.forEach(c => {
       const chip = document.createElement("span");
       chip.className = "chip";
-      chip.innerHTML = `${escapeHtml(c)}<button class="chip-x" title="후보에서 제거">×</button>`;
+      chip.innerHTML = `${escapeHtml(displayCondition(c))}<button class="chip-x" title="후보에서 제거">×</button>`;
       chip.querySelector(".chip-x").addEventListener("click", () => {
         if (!confirm(`"${c}" 후보를 삭제할까? (이미 선택된 항목에는 영향 없음)`)) return;
         removeCandidate(c);
