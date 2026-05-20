@@ -640,6 +640,7 @@
 <div class="panel inbox" data-bucket="inbox">
   <div class="panel-head">
     <h2>인박스 <span class="count"></span></h2>
+    <label class="toggle-done"><input type="checkbox" data-toggle="inbox"> 완료 접기</label>
   </div>
   <div class="add-row">
     <input id="add-input" placeholder="할 일을 입력하고 Enter">
@@ -710,7 +711,7 @@
   ];
   const DEFAULT_STATE = {
     items: [],
-    hideDone: { now: true, conditional: true, split: true }
+    hideDone: { inbox: true, now: true, conditional: true, split: true }
   };
 
   let state = load();
