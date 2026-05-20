@@ -647,7 +647,7 @@
   const BUILTIN_API_URL = "https://script.google.com/macros/s/AKfycbzk6OymKhctGcjHIypCeQRX26Ekn-aAz1dzKldTBsJslHFCHKBsr35Z8PFc4PkjV1fefw/exec";
   const DEFAULT_STATE = {
     items: [],
-    hideDone: { now: false, conditional: false, split: false }
+    hideDone: { now: true, conditional: true, split: true }
   };
 
   let state = load();
@@ -1167,7 +1167,7 @@
       if (items.length === 0) {
         const e = document.createElement("div");
         e.className = "empty";
-        e.textContent = total > 0 ? "(완료된 항목이 접혀있음)" : "비어 있음";
+        e.textContent = total > 0 ? "(완료된 항목이 접혀 있음)" : "비어 있음";
         list.appendChild(e);
       } else {
         items.forEach(it => list.appendChild(renderItem(it)));
@@ -1296,7 +1296,7 @@
     toggleSyncConfig(false);
     const remoteItems = await loadFromRemote();
     if (remoteItems && remoteItems.length === 0 && localHasItems && !hadUrl) {
-      if (confirm(`시트가 비어있어. 현재 로컬 항목 ${state.items.length}개를 시트로 올릴까? (취소하면 로컬도 비어집니다)`)) {
+      if (confirm(`시트가 비어 있어. 현재 로컬 항목 ${state.items.length}개를 시트로 올릴까? (취소하면 로컬도 비워집니다)`)) {
         await saveToRemote();
       }
     }
