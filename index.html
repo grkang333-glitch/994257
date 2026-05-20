@@ -501,6 +501,54 @@
   }
   body.mode-dump .dump-hint { display: block; }
 
+  /* Celebration effect when checking a checkbox */
+  .fx-burst {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    width: 0;
+    height: 0;
+  }
+  .fx-particle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: fx-particle-burst 1000ms cubic-bezier(.15, .7, .35, 1) forwards;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+  }
+  @keyframes fx-particle-burst {
+    0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+    10%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    70%  { opacity: 1; }
+    100% { transform: translate(calc(var(--dx) - 50%), calc(var(--dy) - 50%)) scale(0.4); opacity: 0; }
+  }
+  .fx-praise {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10000;
+    font-size: 22px;
+    font-weight: 800;
+    color: #e8820d;
+    text-shadow:
+      0 0 10px rgba(255,255,255,0.9),
+      0 2px 6px rgba(0,0,0,0.12),
+      0 0 28px rgba(255, 200, 80, 0.6);
+    white-space: nowrap;
+    letter-spacing: -0.3px;
+    animation: fx-praise-pop 1500ms cubic-bezier(.2, .6, .3, 1) forwards;
+  }
+  @keyframes fx-praise-pop {
+    0%   { transform: translate(-50%, -50%) scale(0.4) rotate(-6deg); opacity: 0; }
+    20%  { transform: translate(-50%, -50%) scale(1.2) rotate(3deg);  opacity: 1; }
+    60%  { transform: translate(-50%, -50%) scale(1)   rotate(-1deg); opacity: 1; }
+    100% { transform: translate(-50%, -120%) scale(0.95) rotate(0deg); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fx-burst, .fx-praise { display: none; }
+  }
+
   /* Tablet */
   @media (max-width: 900px) {
     body { padding: 14px; }
@@ -645,6 +693,21 @@
   const REFRESH_INTERVAL_MS = 60000;
   const DEFAULT_CANDIDATES = ["집에 가서", "출근길에", "퇴근길에", "출근 전에", "주말에", "임동민이랑", "2번방에서"];
   const BUILTIN_API_URL = "https://script.google.com/macros/s/AKfycbzk6OymKhctGcjHIypCeQRX26Ekn-aAz1dzKldTBsJslHFCHKBsr35Z8PFc4PkjV1fefw/exec";
+  const PRAISES = [
+    "잘했어!", "역시!", "최고야", "굿!", "오 좋아",
+    "야무져", "탁월해", "장하다", "끝내준다",
+    "한 건 했네", "와우", "박수!", "오예!",
+    "한 칸 줄었네", "프로의 향기", "굿잡!",
+    "역시 너야", "이맛이지", "오늘도 해냈다",
+    "최고최고", "고생했어", "워후",
+    "막힘없다", "처리 완료", "기특해",
+    "쾌속처리", "한 발짝 더!", "체크 또 체크"
+  ];
+  const FX_COLORS = [
+    "#ff4d6d", "#ffd60a", "#06d6a0", "#118ab2",
+    "#9b5de5", "#ff8500", "#ffafcc", "#7df9ff",
+    "#ff006e", "#3a86ff"
+  ];
   const DEFAULT_STATE = {
     items: [],
     hideDone: { now: true, conditional: true, split: true }
@@ -723,6 +786,48 @@
   }
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function celebrate(anchorEl) {
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    // Particle burst
+    const burst = document.createElement("div");
+    burst.className = "fx-burst";
+    burst.style.left = cx + "px";
+    burst.style.top = cy + "px";
+    const count = 36;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const dist = 60 + Math.random() * 80;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const p = document.createElement("span");
+      p.className = "fx-particle";
+      p.style.background = FX_COLORS[Math.floor(Math.random() * FX_COLORS.length)];
+      p.style.setProperty("--dx", dx + "px");
+      p.style.setProperty("--dy", dy + "px");
+      const size = 5 + Math.random() * 8;
+      p.style.width = size + "px";
+      p.style.height = size + "px";
+      p.style.animationDelay = (Math.random() * 80) + "ms";
+      burst.appendChild(p);
+    }
+    document.body.appendChild(burst);
+    setTimeout(() => burst.remove(), 1300);
+
+    // Praise text (centered horizontally, near checkbox vertically)
+    const praise = document.createElement("div");
+    praise.className = "fx-praise";
+    praise.textContent = PRAISES[Math.floor(Math.random() * PRAISES.length)];
+    praise.style.left = "50%";
+    const safeTop = Math.min(Math.max(cy - 30, 90), window.innerHeight - 90);
+    praise.style.top = safeTop + "px";
+    document.body.appendChild(praise);
+    setTimeout(() => praise.remove(), 1700);
   }
 
   function scheduleRemoteSave() {
@@ -888,8 +993,13 @@
     if (!it) return;
     const wasDone = it.done;
     it.done = !it.done;
-    if (it.done && !wasDone) it.completedAt = Date.now();
-    else if (!it.done) it.completedAt = null;
+    if (it.done && !wasDone) {
+      it.completedAt = Date.now();
+      const checkboxEl = document.querySelector(`.item[data-id="${id}"] input[type="checkbox"]`);
+      celebrate(checkboxEl);
+    } else if (!it.done) {
+      it.completedAt = null;
+    }
     save(); render();
   }
   function setText(id, text) {
