@@ -433,6 +433,74 @@
   }
   .sync-config[hidden] { display: none; }
 
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    background: #ececef;
+    padding: 4px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 9px 16px;
+    text-align: center;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--muted);
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mode-tab.active {
+    background: white;
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .mode-tab:not(.active):hover { color: var(--text); background: rgba(255,255,255,0.5); }
+
+  /* Dump mode: hide everything except inbox; beef up inbox */
+  body.mode-dump .columns { display: none; }
+  body.mode-dump .footer { display: none; }
+  body.mode-dump .panel.inbox {
+    background: linear-gradient(180deg, #fffdf4, var(--card) 80px);
+    border-color: #e3d6a8;
+  }
+  body.mode-dump .panel.inbox .panel-head h2 {
+    font-size: 15px;
+    color: #6b5500;
+  }
+  body.mode-dump .panel.inbox .add-row input {
+    font-size: 15px;
+    padding: 12px 14px;
+    border-color: #d4c182;
+  }
+  body.mode-dump .panel.inbox .add-row input:focus {
+    outline: 2px solid #d4c182;
+    outline-offset: -1px;
+  }
+  body.mode-dump .panel.inbox .add-row button {
+    padding: 12px 22px;
+    font-size: 14px;
+  }
+  body.mode-dump .panel.inbox .item .meta { display: none; }
+  body.mode-dump .panel.inbox .item .conditions-area { display: none; }
+  body.mode-dump .panel.inbox .item .actions [data-move] { display: none; }
+  body.mode-dump .panel.inbox .item .actions [data-act="add-child"] { display: none; }
+
+  /* Encouraging hint shown only in dump mode when inbox is empty-ish */
+  .dump-hint {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 8px 2px 2px;
+    line-height: 1.5;
+    display: none;
+  }
+  body.mode-dump .dump-hint { display: block; }
+
   /* Tablet */
   @media (max-width: 900px) {
     body { padding: 14px; }
@@ -443,6 +511,9 @@
   @media (max-width: 600px) {
     body { padding: 10px; }
     h1 { font-size: 17px; margin-bottom: 10px; }
+    .mode-tab { padding: 11px 12px; font-size: 14px; }
+    body.mode-dump .panel.inbox .add-row input { font-size: 16px; padding: 13px 14px; }
+    body.mode-dump .panel.inbox .add-row button { font-size: 15px; padding: 13px 18px; }
     .sync-bar {
       padding: 7px 10px;
       gap: 6px;
@@ -513,6 +584,11 @@
   </div>
 </div>
 
+<div class="mode-tabs">
+  <button class="mode-tab" data-mode="dump">쏟아내기</button>
+  <button class="mode-tab" data-mode="organize">정리하기</button>
+</div>
+
 <div class="panel inbox" data-bucket="inbox">
   <div class="panel-head">
     <h2>인박스 <span class="count"></span></h2>
@@ -521,6 +597,7 @@
     <input id="add-input" placeholder="할 일을 입력하고 Enter">
     <button id="add-btn">추가</button>
   </div>
+  <div class="dump-hint">머릿속에 떠오르는 거 뭐든 적어. 분류·기한·조건은 나중에 [정리하기]에서.</div>
   <div class="list"></div>
 </div>
 
@@ -617,7 +694,22 @@
     try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch {}
     if (!Array.isArray(s.conditionCandidates)) s.conditionCandidates = [...DEFAULT_CANDIDATES];
     if (s.apiUrl === undefined) s.apiUrl = BUILTIN_API_URL;
+    if (s.viewMode !== "organize" && s.viewMode !== "dump") s.viewMode = "dump";
     return s;
+  }
+  function applyViewMode() {
+    const mode = settings.viewMode === "organize" ? "organize" : "dump";
+    document.body.classList.toggle("mode-dump", mode === "dump");
+    document.body.classList.toggle("mode-organize", mode === "organize");
+    document.querySelectorAll(".mode-tab").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.mode === mode);
+    });
+    const addInput = document.getElementById("add-input");
+    if (addInput) {
+      addInput.placeholder = mode === "dump"
+        ? "머릿속에 있는 거 그냥 쏟아내봐"
+        : "할 일을 입력하고 Enter";
+    }
   }
   function saveSettings() {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -1127,6 +1219,20 @@
     document.querySelectorAll("[data-toggle]").forEach(cb => cb.checked = false);
   });
 
+  // ---- Mode tabs ----
+  document.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const newMode = btn.dataset.mode;
+      if (settings.viewMode === newMode) return;
+      settings.viewMode = newMode;
+      saveSettings();
+      applyViewMode();
+      if (newMode === "dump") {
+        setTimeout(() => document.getElementById("add-input")?.focus(), 30);
+      }
+    });
+  });
+
   // ---- Candidates panel ----
   const candidatesToggle = document.getElementById("candidates-toggle");
   const candidatesPanel = document.getElementById("candidates-panel");
@@ -1212,6 +1318,7 @@
   setInterval(renderSyncStatus, 10000);
 
   // ---- Initial render + load ----
+  applyViewMode();
   render();
   setSyncStatus("idle");
   if (settings.apiUrl) {
