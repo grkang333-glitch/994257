@@ -698,12 +698,74 @@
     "출근길에": "🚌",
     "퇴근길에": "🚌",
     "출근 전에": "☀️",
-    "주말에": "🛋️",
+    "주말에": "🌴",
     "임동민이랑": "👥",
     "2번방에서": "🪑"
   };
+  // Keyword-based fallback. First match wins, so order from specific to general.
+  const KEYWORD_EMOJI = [
+    { kw: ["엄마", "아빠", "부모", "가족"], emoji: "👨‍👩‍👧" },
+    { kw: ["아내", "남편", "부부"], emoji: "💑" },
+    { kw: ["애기", "아기", "아이", "딸", "아들"], emoji: "🧒" },
+    { kw: ["카페", "커피"], emoji: "☕" },
+    { kw: ["점심"], emoji: "🍱" },
+    { kw: ["저녁"], emoji: "🌆" },
+    { kw: ["식사", "밥", "먹"], emoji: "🍽️" },
+    { kw: ["병원", "의사", "치과", "약국"], emoji: "🏥" },
+    { kw: ["은행", "돈", "결제", "송금"], emoji: "💰" },
+    { kw: ["헬스", "운동", "체육관"], emoji: "💪" },
+    { kw: ["회의", "미팅"], emoji: "💼" },
+    { kw: ["회사", "사무실", "오피스"], emoji: "🏢" },
+    { kw: ["학교", "수업", "강의"], emoji: "🏫" },
+    { kw: ["도서관", "독서", "책"], emoji: "📚" },
+    { kw: ["교회", "예배", "성당"], emoji: "⛪" },
+    { kw: ["집", "홈"], emoji: "🏠" },
+    { kw: ["출근", "퇴근"], emoji: "🚌" },
+    { kw: ["버스"], emoji: "🚌" },
+    { kw: ["기차", "지하철", "전철"], emoji: "🚇" },
+    { kw: ["택시", "차", "운전"], emoji: "🚗" },
+    { kw: ["비행", "공항"], emoji: "✈️" },
+    { kw: ["공원", "산책", "걷"], emoji: "🌳" },
+    { kw: ["마트", "쇼핑", "장보기", "장 보"], emoji: "🛒" },
+    { kw: ["빨래", "세탁"], emoji: "🧺" },
+    { kw: ["청소"], emoji: "🧹" },
+    { kw: ["요리"], emoji: "🍳" },
+    { kw: ["휴가", "휴일"], emoji: "🌴" },
+    { kw: ["여행"], emoji: "🧳" },
+    { kw: ["전화", "통화"], emoji: "📞" },
+    { kw: ["메일", "이메일"], emoji: "📧" },
+    { kw: ["슬랙", "메세지", "메시지", "톡", "카톡"], emoji: "💬" },
+    { kw: ["밤", "야간"], emoji: "🌙" },
+    { kw: ["아침", "오전", "기상", "일어나"], emoji: "🌅" },
+    { kw: ["주말", "토요일", "일요일"], emoji: "🌴" },
+    { kw: ["월요일", "화요일", "수요일", "목요일", "금요일", "평일"], emoji: "📅" },
+    { kw: ["친구"], emoji: "👥" },
+    { kw: ["이랑", "함께", "같이"], emoji: "🤝" },
+    { kw: ["방"], emoji: "🚪" },
+    { kw: ["컴퓨터", "노트북", "코딩"], emoji: "💻" },
+    { kw: ["게임"], emoji: "🎮" },
+    { kw: ["영화"], emoji: "🎬" },
+    { kw: ["음악"], emoji: "🎵" }
+  ];
+  const FALLBACK_EMOJIS = ["📌", "✨", "🌟", "💡", "🎯", "📝", "🔖", "🌸", "🎨", "🔮", "💫", "⭐", "🌈", "🪄", "🎪", "🎁", "🍀", "🎈"];
+  function hashString(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return Math.abs(h);
+  }
+  function emojiFor(text) {
+    if (!text) return "";
+    if (CONDITION_EMOJI[text]) return CONDITION_EMOJI[text];
+    for (const rule of KEYWORD_EMOJI) {
+      if (rule.kw.some(k => text.includes(k))) return rule.emoji;
+    }
+    return FALLBACK_EMOJIS[hashString(text) % FALLBACK_EMOJIS.length];
+  }
   function displayCondition(text) {
-    const e = CONDITION_EMOJI[text];
+    const e = emojiFor(text);
     return e ? `${e} ${text}` : text;
   }
   const BUILTIN_API_URL = "https://script.google.com/macros/s/AKfycbzk6OymKhctGcjHIypCeQRX26Ekn-aAz1dzKldTBsJslHFCHKBsr35Z8PFc4PkjV1fefw/exec";
