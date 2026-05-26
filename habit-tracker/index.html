@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>해빗 트래커 · 콤보 챌린지</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>해빗 트래커</h1>
+    <div class="topbar-right">
+      <span id="syncStatus" class="muted small"></span>
+      <span id="todayLabel" class="muted"></span>
+      <button id="openSettings" class="ghost">설정</button>
+    </div>
+  </header>
+
+  <!-- 챌린지 미설정 안내 -->
+  <section id="noChallenge" class="card hidden">
+    <h2>챌린지를 시작해 볼까요?</h2>
+    <p class="muted">목표 기간과 태스크를 설정하면 콤보 트래킹이 시작됩니다.</p>
+    <button id="startSetup" class="primary">챌린지 설정하기</button>
+  </section>
+
+  <!-- 대시보드 -->
+  <section id="dashboard" class="hidden">
+    <div class="card hero">
+      <div class="hero-left">
+        <div class="hero-title" id="challengeTitle">챌린지</div>
+        <div class="hero-sub">
+          <span id="challengeRange" class="muted"></span>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="big-num" id="daysLeft">-</div>
+        <div class="muted">남은 일수</div>
+        <div class="progress">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="muted small" id="progressText"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>오늘의 체크인</h2>
+        <span class="muted small" id="todayDate"></span>
+      </div>
+      <div id="todayCheckins"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>콤보 현황</h2>
+        <button id="manageTasks" class="ghost small">태스크 관리</button>
+      </div>
+      <div id="comboList"></div>
+    </div>
+
+    <div class="card" id="messageCard">
+      <div class="card-head"><h2>코치 메시지</h2></div>
+      <div id="coachMessages"></div>
+    </div>
+  </section>
+</div>
+
+<!-- 설정 모달 -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-body">
+    <div class="modal-head">
+      <h2>챌린지 설정</h2>
+      <button class="close" data-close>✕</button>
+    </div>
+    <label>챌린지 이름
+      <input type="text" id="cfgTitle" placeholder="예: 30일 건강 챌린지" />
+    </label>
+    <label>시작일
+      <input type="date" id="cfgStart" />
+    </label>
+    <label>목표 기간(일)
+      <input type="number" id="cfgDays" min="1" value="30" />
+    </label>
+    <label>Google Sheets API URL <span class="muted small">(선택 — Apps Script 웹 앱 URL)</span>
+      <input type="text" id="cfgApiUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+    </label>
+    <div class="row-end">
+      <button id="loadFromSheet" class="ghost">시트에서 불러오기</button>
+      <button id="resetAll" class="danger ghost">전체 초기화</button>
+      <button id="saveChallenge" class="primary">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 태스크 관리 모달 -->
+<div id="tasksModal" class="modal hidden">
+  <div class="modal-body wide">
+    <div class="modal-head">
+      <h2>태스크 관리</h2>
+      <button class="close" data-close>✕</button>
+    </div>
+    <p class="muted small">콤보는 체크포인트(슬롯)를 시간 순서대로 성공시킬 때마다 누적됩니다. 한 번이라도 "실패"하면 0으로 리셋됩니다.</p>
+    <div id="taskEditList"></div>
+    <button id="addTask" class="ghost">+ 태스크 추가</button>
+
+    <details class="preset">
+      <summary>프리셋 빠르게 추가</summary>
+      <div class="preset-row">
+        <button data-preset="meals" class="ghost small">삼시세끼</button>
+        <button data-preset="snack" class="ghost small">간식 안 먹기</button>
+        <button data-preset="latenight" class="ghost small">야식 안 먹기</button>
+        <button data-preset="alcohol" class="ghost small">술 안 마시기</button>
+        <button data-preset="workout" class="ghost small">운동하기</button>
+      </div>
+    </details>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

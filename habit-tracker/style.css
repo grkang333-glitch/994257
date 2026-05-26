@@ -1,0 +1,158 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181b22;
+  --panel-2: #20242d;
+  --border: #2a2f3a;
+  --text: #e7ebf2;
+  --muted: #8b93a7;
+  --accent: #7c9cff;
+  --accent-2: #5fd6a0;
+  --danger: #ff7a7a;
+  --warn: #ffb86b;
+  --shadow: 0 4px 18px rgba(0,0,0,0.3);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; }
+
+.app { max-width: 880px; margin: 0 auto; padding: 24px 20px 80px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.topbar h1 { font-size: 22px; margin: 0; letter-spacing: -0.3px; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.card h2 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: -0.2px; }
+
+.hero { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center; }
+.hero-title { font-size: 20px; font-weight: 700; }
+.hero-sub { margin-top: 4px; }
+.hero-right { text-align: right; min-width: 180px; }
+.big-num { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -1px; color: var(--accent); }
+.progress { margin-top: 10px; height: 6px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .4s; }
+
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.hidden { display: none !important; }
+
+button { font-family: inherit; cursor: pointer; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); font-size: 13px; transition: all .15s; }
+button:hover { background: #2a2f3a; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #0b0d13; font-weight: 600; }
+button.primary:hover { filter: brightness(1.05); }
+button.ghost { background: transparent; }
+button.danger { color: var(--danger); border-color: #4a2a2a; }
+button.small { padding: 5px 10px; font-size: 12px; }
+
+input[type="text"], input[type="date"], input[type="number"] {
+  width: 100%; padding: 9px 11px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; font-family: inherit;
+}
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+label input { margin-top: 4px; }
+
+.row-end { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* 오늘 체크인 */
+.checkin-task { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.checkin-task:last-child { border-bottom: none; }
+.checkin-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.checkin-name { font-weight: 600; }
+.checkin-combo { font-size: 12px; color: var(--accent-2); }
+.slots { display: flex; flex-wrap: wrap; gap: 6px; }
+.slot { display: flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; }
+.slot .slot-name { min-width: 40px; color: var(--muted); }
+.slot-btn { padding: 3px 8px; font-size: 12px; border-radius: 6px; }
+.slot-btn.ok { background: rgba(95, 214, 160, 0.15); border-color: rgba(95, 214, 160, 0.4); color: var(--accent-2); }
+.slot-btn.fail { background: rgba(255, 122, 122, 0.12); border-color: rgba(255, 122, 122, 0.4); color: var(--danger); }
+.slot-btn.active.ok { background: var(--accent-2); color: #0b0d13; border-color: var(--accent-2); }
+.slot-btn.active.fail { background: var(--danger); color: #0b0d13; border-color: var(--danger); }
+
+/* 콤보 리스트 */
+.combo-row { display: grid; grid-template-columns: 1.4fr auto auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); align-items: center; }
+.combo-row:last-child { border-bottom: none; }
+.combo-row .name { font-weight: 600; }
+.combo-row .now { font-size: 22px; font-weight: 700; color: var(--accent); min-width: 60px; text-align: right; }
+.combo-row .best { font-size: 12px; color: var(--muted); }
+
+/* 코치 메시지 */
+.coach-msg { padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 6px; margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
+.coach-msg.warn { border-left-color: var(--warn); }
+.coach-msg.fail { border-left-color: var(--danger); }
+
+/* 모달 */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+.modal-body { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+.modal-body.wide { max-width: 620px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-head h2 { margin: 0; font-size: 18px; }
+.close { background: transparent; border: none; color: var(--muted); font-size: 18px; }
+
+/* 태스크 편집 */
+.task-edit { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.task-edit .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.task-edit input[type="text"] { flex: 1; }
+.slot-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { background: var(--panel); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.chip button { background: transparent; border: none; padding: 0; color: var(--muted); font-size: 14px; line-height: 1; }
+.add-slot { display: flex; gap: 6px; margin-top: 8px; }
+.add-slot input { flex: 1; }
+.preset { margin-top: 16px; }
+.preset summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+.empty { text-align: center; color: var(--muted); padding: 18px 0; font-size: 13px; }
+
+/* ===== 모바일 최적화 ===== */
+@media (max-width: 600px) {
+  .app { padding: 14px 12px 60px; }
+  .topbar { margin-bottom: 12px; }
+  .topbar h1 { font-size: 18px; }
+  .topbar-right { gap: 8px; }
+  .topbar-right #todayLabel { font-size: 12px; }
+
+  .card { padding: 14px; border-radius: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 14px; }
+
+  .hero { grid-template-columns: 1fr; gap: 12px; }
+  .hero-right { text-align: left; min-width: 0; }
+  .hero-title { font-size: 18px; }
+  .big-num { font-size: 38px; display: inline-block; margin-right: 8px; }
+  .hero-right .muted { display: inline-block; }
+  .progress { margin-top: 8px; }
+
+  .checkin-task { padding: 10px 0; }
+  .checkin-head { margin-bottom: 6px; }
+  .slots { gap: 6px; }
+  .slot { flex: 1 1 100%; justify-content: space-between; padding: 8px 10px; }
+  .slot .slot-name { flex: 1; min-width: 0; }
+  .slot-btn { padding: 6px 12px; font-size: 13px; min-height: 32px; }
+
+  .combo-row { grid-template-columns: 1fr auto; gap: 8px; }
+  .combo-row .best { display: none; }
+  .combo-row .now { font-size: 26px; }
+  .combo-row .name { font-size: 14px; }
+
+  .coach-msg { font-size: 13px; padding: 9px 11px; line-height: 1.45; }
+
+  .modal { padding: 0; align-items: flex-end; }
+  .modal-body { max-width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; padding: 18px 16px; }
+  .modal-body.wide { max-width: 100%; }
+  .modal-head h2 { font-size: 16px; }
+
+  .task-edit { padding: 10px; }
+  .task-edit .row { flex-wrap: wrap; }
+  .add-slot { flex-wrap: wrap; }
+
+  button { padding: 9px 14px; font-size: 13px; }
+  button.small { padding: 6px 10px; }
+
+  input[type="text"], input[type="date"], input[type="number"] {
+    font-size: 16px; /* iOS 자동 줌 방지 */
+  }
+}
+
+/* 터치 대응 — 호버 효과 제거 */
+@media (hover: none) {
+  button:hover { background: var(--panel-2); }
+  button.primary:hover { filter: none; }
+}
