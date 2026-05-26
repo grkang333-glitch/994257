@@ -5,7 +5,7 @@ const DEFAULT_STATE = {
   challenge: null,
   tasks: [],
   logs: {},
-  settings: { apiUrl: '' }
+  settings: { apiUrl: '', userId: '' }
 };
 
 let state = load();
@@ -16,7 +16,7 @@ function load() {
     if (!raw) return structuredClone(DEFAULT_STATE);
     const parsed = JSON.parse(raw);
     const merged = Object.assign(structuredClone(DEFAULT_STATE), parsed);
-    merged.settings = Object.assign({ apiUrl: '' }, parsed.settings || {});
+    merged.settings = Object.assign({ apiUrl: '', userId: '' }, parsed.settings || {});
     return merged;
   } catch {
     return structuredClone(DEFAULT_STATE);
@@ -37,15 +37,18 @@ function setSyncStatus(text, cls = '') {
   el.textContent = text;
   el.style.color = cls === 'err' ? 'var(--danger)' : cls === 'ok' ? 'var(--accent-2)' : '';
 }
+function syncReady() {
+  return !!(state.settings?.apiUrl && state.settings?.userId);
+}
 function scheduleSync() {
-  if (!state.settings?.apiUrl) return;
+  if (!syncReady()) return;
   clearTimeout(syncTimer);
   setSyncStatus('● 저장 대기…');
   syncTimer = setTimeout(syncStateToSheet, 1500);
 }
 async function syncStateToSheet() {
-  const url = state.settings?.apiUrl;
-  if (!url) return;
+  if (!syncReady()) return;
+  const url = state.settings.apiUrl;
   setSyncStatus('● 동기화 중…');
   try {
     await fetch(url, {
@@ -53,6 +56,7 @@ async function syncStateToSheet() {
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         type: 'state',
+        userId: state.settings.userId,
         state: { challenge: state.challenge, tasks: state.tasks, logs: state.logs }
       })
     });
@@ -63,24 +67,24 @@ async function syncStateToSheet() {
   }
 }
 async function logEventToSheet(ev) {
-  const url = state.settings?.apiUrl;
-  if (!url) return;
+  if (!syncReady()) return;
   try {
-    await fetch(url, {
+    await fetch(state.settings.apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ type: 'event', event: ev })
+      body: JSON.stringify({ type: 'event', userId: state.settings.userId, event: ev })
     });
   } catch {}
 }
 // 자동 폴링용 — 로컬 변경 직후 / 저장 대기 중이면 skip, 변경 없으면 무음
 async function autoFetchFromSheet() {
-  const url = state.settings?.apiUrl;
-  if (!url) return;
+  if (!syncReady()) return;
   if (syncTimer) return; // 저장 대기 중
   if (Date.now() - lastLocalChange < 3000) return; // 방금 로컬 변경
+  const url = state.settings.apiUrl;
+  const userId = state.settings.userId;
   try {
-    const res = await fetch(url + '?t=' + Date.now());
+    const res = await fetch(url + '?userId=' + encodeURIComponent(userId) + '&t=' + Date.now());
     const data = await res.json();
     if (!data?.ok || !data.state) return;
     const remote = JSON.stringify({
@@ -104,10 +108,11 @@ async function autoFetchFromSheet() {
 
 async function loadStateFromSheet() {
   const url = state.settings?.apiUrl;
-  if (!url) { alert('먼저 API URL을 입력하세요.'); return; }
+  const userId = state.settings?.userId;
+  if (!url || !userId) { alert('API URL과 닉네임을 모두 입력하세요.'); return; }
   setSyncStatus('● 불러오는 중…');
   try {
-    const res = await fetch(url + '?t=' + Date.now());
+    const res = await fetch(url + '?userId=' + encodeURIComponent(userId) + '&t=' + Date.now());
     const data = await res.json();
     if (data && data.ok && data.state) {
       state.challenge = data.state.challenge ?? null;
@@ -389,6 +394,7 @@ function openSettings() {
   document.getElementById('cfgStart').value = state.challenge?.startDate || todayStr();
   document.getElementById('cfgDays').value = state.challenge?.days || 30;
   document.getElementById('cfgApiUrl').value = state.settings?.apiUrl || '';
+  document.getElementById('cfgUserId').value = state.settings?.userId || '';
   settingsModal.classList.remove('hidden');
 }
 document.getElementById('saveChallenge').addEventListener('click', async () => {
@@ -396,13 +402,15 @@ document.getElementById('saveChallenge').addEventListener('click', async () => {
   const startDate = document.getElementById('cfgStart').value || todayStr();
   const days = Math.max(1, parseInt(document.getElementById('cfgDays').value, 10) || 30);
   const apiUrl = document.getElementById('cfgApiUrl').value.trim();
+  const userId = document.getElementById('cfgUserId').value.trim();
   const prevApiUrl = state.settings?.apiUrl || '';
-  const apiUrlChanged = apiUrl && apiUrl !== prevApiUrl;
+  const prevUserId = state.settings?.userId || '';
+  const syncIdChanged = (apiUrl !== prevApiUrl || userId !== prevUserId) && apiUrl && userId;
   const localEmpty = !state.tasks.length && !state.challenge;
 
-  // 새 URL을 처음 입력하면서 로컬이 비어 있으면, 시트 데이터를 덮어쓰지 않도록 먼저 가져옴
-  if (apiUrlChanged && localEmpty) {
-    state.settings = Object.assign({}, state.settings, { apiUrl });
+  // 새 백엔드 정보 입력 + 로컬이 비어 있으면, 시트 데이터를 덮어쓰지 않도록 먼저 가져옴
+  if (syncIdChanged && localEmpty) {
+    state.settings = Object.assign({}, state.settings, { apiUrl, userId });
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     settingsModal.classList.add('hidden');
     await loadStateFromSheet();
@@ -410,14 +418,15 @@ document.getElementById('saveChallenge').addEventListener('click', async () => {
   }
 
   state.challenge = { title, startDate, days };
-  state.settings = Object.assign({}, state.settings, { apiUrl });
+  state.settings = Object.assign({}, state.settings, { apiUrl, userId });
   save();
   settingsModal.classList.add('hidden');
   if (!state.tasks.length) openTasks(); else render();
 });
 document.getElementById('loadFromSheet').addEventListener('click', () => {
   const apiUrl = document.getElementById('cfgApiUrl').value.trim();
-  state.settings = Object.assign({}, state.settings, { apiUrl });
+  const userId = document.getElementById('cfgUserId').value.trim();
+  state.settings = Object.assign({}, state.settings, { apiUrl, userId });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   if (!confirm('시트의 데이터로 현재 로컬 데이터를 덮어씁니다. 계속하시겠습니까?')) return;
   loadStateFromSheet().then(() => settingsModal.classList.add('hidden'));

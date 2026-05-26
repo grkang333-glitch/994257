@@ -1,66 +1,91 @@
 // ===================================================================
-// 콤보 챌린지 백엔드 (Google Apps Script)
+// 콤보 챌린지 백엔드 (Google Apps Script) — v2: 다중 사용자 지원
 //
 // 사용 방법:
-// 1) 구글 드라이브에서 새 스프레드시트 생성 (예: "Habit Tracker")
-// 2) 메뉴 [확장 프로그램] → [Apps Script] 클릭
-// 3) 기본 Code.gs 내용 전체를 이 파일 내용으로 교체
-// 4) 저장 후 우측 상단 [배포] → [새 배포] → 유형: "웹 앱"
-//    - 다음 사용자로 실행: 본인
-//    - 액세스 권한: "모든 사용자" (링크 아는 사람)
-// 5) 배포 후 나오는 웹 앱 URL (https://script.google.com/macros/s/.../exec) 복사
-// 6) 콤보 챌린지 앱 → 설정 → "Google Sheets API URL"에 붙여넣고 저장
+// 1) 구글 드라이브에서 새 스프레드시트 생성 (또는 기존 시트 그대로 사용)
+// 2) 메뉴 [확장 프로그램] → [Apps Script]
+// 3) 기존 코드 전체 삭제 후 이 내용으로 교체
+// 4) 저장 → [배포] → [배포 관리] → 기존 배포의 [편집(연필)]
+//    → 버전: "새 버전" 선택 → [배포]
+//    (URL은 그대로 유지됨. 새로 배포하면 URL이 바뀌어서 모든 사용자가 재설정해야 함)
+// 5) 시트는 비워둬도 됨 — `states` 와 `events` 탭이 자동 생성됨
 //
-// 시트 구조 (자동 생성됨):
-//   state  - A1 셀에 전체 앱 상태 JSON 1줄 저장
-//   events - 슬롯 변경 이벤트 누적 (timestamp, date, taskId, taskName, slot, status)
+// 시트 구조:
+//   states  - userId | state(JSON) | updated   (사용자별 1행)
+//   events  - timestamp | userId | date | taskId | taskName | slot | status
 // ===================================================================
 
-const STATE_SHEET = 'state';
+const STATES_SHEET = 'states';
 const EVENTS_SHEET = 'events';
 
 function doGet(e) {
   try {
+    const userId = ((e.parameter && e.parameter.userId) || '').trim();
+    if (!userId) return jsonOut({ ok: false, error: 'userId required' });
+
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(STATE_SHEET);
     let state = { challenge: null, tasks: [], logs: {} };
-    if (sheet && sheet.getLastRow() >= 1) {
-      const v = sheet.getRange(1, 1).getValue();
-      if (v) {
-        try { state = JSON.parse(v); } catch (err) {}
+    const sheet = ss.getSheetByName(STATES_SHEET);
+    if (sheet && sheet.getLastRow() >= 2) {
+      const vals = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
+      for (const row of vals) {
+        if (String(row[0]) === userId && row[1]) {
+          try { state = JSON.parse(row[1]); } catch (err) {}
+          break;
+        }
       }
     }
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, state }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOut({ ok: true, state });
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOut({ ok: false, error: String(err) });
   }
 }
 
 function doPost(e) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
     const body = JSON.parse(e.postData.contents);
+    const userId = (body.userId || '').trim();
+    if (!userId) return jsonOut({ ok: false, error: 'userId required' });
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (body.type === 'state') {
-      let sheet = ss.getSheetByName(STATE_SHEET);
-      if (!sheet) sheet = ss.insertSheet(STATE_SHEET);
-      sheet.getRange(1, 1).setValue(JSON.stringify(body.state));
+      let sheet = ss.getSheetByName(STATES_SHEET);
+      if (!sheet) {
+        sheet = ss.insertSheet(STATES_SHEET);
+        sheet.appendRow(['userId', 'state', 'updated']);
+      }
+      const last = sheet.getLastRow();
+      let rowIdx = -1;
+      if (last >= 2) {
+        const ids = sheet.getRange(2, 1, last - 1, 1).getValues();
+        for (let i = 0; i < ids.length; i++) {
+          if (String(ids[i][0]) === userId) { rowIdx = i + 2; break; }
+        }
+      }
+      const json = JSON.stringify(body.state);
+      const now = new Date();
+      if (rowIdx > 0) {
+        sheet.getRange(rowIdx, 2, 1, 2).setValues([[json, now]]);
+      } else {
+        sheet.appendRow([userId, json, now]);
+      }
     } else if (body.type === 'event') {
       let sheet = ss.getSheetByName(EVENTS_SHEET);
       if (!sheet) {
         sheet = ss.insertSheet(EVENTS_SHEET);
-        sheet.appendRow(['timestamp', 'date', 'taskId', 'taskName', 'slot', 'status']);
+        sheet.appendRow(['timestamp', 'userId', 'date', 'taskId', 'taskName', 'slot', 'status']);
       }
       const ev = body.event || {};
-      sheet.appendRow([new Date(), ev.date || '', ev.taskId || '', ev.taskName || '', ev.slot || '', ev.status || '']);
+      sheet.appendRow([new Date(), userId, ev.date || '', ev.taskId || '', ev.taskName || '', ev.slot || '', ev.status || '']);
     }
-
-    return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOut({ ok: true });
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonOut({ ok: false, error: String(err) });
   }
+}
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
 }
