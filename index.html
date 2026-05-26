@@ -836,6 +836,21 @@
     if (s.viewMode !== "organize" && s.viewMode !== "dump") s.viewMode = "dump";
     return s;
   }
+  // Allow personalized setup via ?api=<url> link
+  function applyApiUrlFromQueryParam() {
+    const params = new URLSearchParams(window.location.search);
+    const api = params.get("api");
+    if (api) {
+      settings.apiUrl = api;
+      saveSettings();
+      params.delete("api");
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname +
+        (newSearch ? "?" + newSearch : "") +
+        window.location.hash;
+      history.replaceState(null, "", newUrl);
+    }
+  }
   function applyViewMode() {
     const mode = settings.viewMode === "organize" ? "organize" : "dump";
     document.body.classList.toggle("mode-dump", mode === "dump");
@@ -976,7 +991,8 @@
     inFlight = true;
     if (!silent) setSyncStatus("loading");
     try {
-      const res = await fetch(settings.apiUrl + "?action=list");
+      const sep = settings.apiUrl.includes("?") ? "&" : "?";
+      const res = await fetch(settings.apiUrl + sep + "action=list");
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "load failed");
       const items = itemsFromRemote(data.items || []);
@@ -1504,6 +1520,7 @@
   setInterval(renderSyncStatus, 10000);
 
   // ---- Initial render + load ----
+  applyApiUrlFromQueryParam();
   applyViewMode();
   render();
   setSyncStatus("idle");
