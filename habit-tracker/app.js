@@ -391,11 +391,24 @@ function openSettings() {
   document.getElementById('cfgApiUrl').value = state.settings?.apiUrl || '';
   settingsModal.classList.remove('hidden');
 }
-document.getElementById('saveChallenge').addEventListener('click', () => {
+document.getElementById('saveChallenge').addEventListener('click', async () => {
   const title = document.getElementById('cfgTitle').value.trim() || '나의 챌린지';
   const startDate = document.getElementById('cfgStart').value || todayStr();
   const days = Math.max(1, parseInt(document.getElementById('cfgDays').value, 10) || 30);
   const apiUrl = document.getElementById('cfgApiUrl').value.trim();
+  const prevApiUrl = state.settings?.apiUrl || '';
+  const apiUrlChanged = apiUrl && apiUrl !== prevApiUrl;
+  const localEmpty = !state.tasks.length && !state.challenge;
+
+  // 새 URL을 처음 입력하면서 로컬이 비어 있으면, 시트 데이터를 덮어쓰지 않도록 먼저 가져옴
+  if (apiUrlChanged && localEmpty) {
+    state.settings = Object.assign({}, state.settings, { apiUrl });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    settingsModal.classList.add('hidden');
+    await loadStateFromSheet();
+    return;
+  }
+
   state.challenge = { title, startDate, days };
   state.settings = Object.assign({}, state.settings, { apiUrl });
   save();
