@@ -24,11 +24,13 @@ function load() {
 }
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  lastLocalChange = Date.now();
   scheduleSync();
 }
 
 // ===== Google Sheets 동기화 =====
 let syncTimer = null;
+let lastLocalChange = 0;
 function setSyncStatus(text, cls = '') {
   const el = document.getElementById('syncStatus');
   if (!el) return;
@@ -71,6 +73,35 @@ async function logEventToSheet(ev) {
     });
   } catch {}
 }
+// 자동 폴링용 — 로컬 변경 직후 / 저장 대기 중이면 skip, 변경 없으면 무음
+async function autoFetchFromSheet() {
+  const url = state.settings?.apiUrl;
+  if (!url) return;
+  if (syncTimer) return; // 저장 대기 중
+  if (Date.now() - lastLocalChange < 3000) return; // 방금 로컬 변경
+  try {
+    const res = await fetch(url + '?t=' + Date.now());
+    const data = await res.json();
+    if (!data?.ok || !data.state) return;
+    const remote = JSON.stringify({
+      challenge: data.state.challenge ?? null,
+      tasks: data.state.tasks ?? [],
+      logs: data.state.logs ?? {}
+    });
+    const local = JSON.stringify({
+      challenge: state.challenge, tasks: state.tasks, logs: state.logs
+    });
+    if (remote === local) return;
+    state.challenge = data.state.challenge ?? null;
+    state.tasks = data.state.tasks ?? [];
+    state.logs = data.state.logs ?? {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    setSyncStatus('● 새 데이터 받음', 'ok');
+    setTimeout(() => setSyncStatus(''), 2000);
+    render();
+  } catch {}
+}
+
 async function loadStateFromSheet() {
   const url = state.settings?.apiUrl;
   if (!url) { alert('먼저 API URL을 입력하세요.'); return; }
@@ -476,3 +507,13 @@ document.querySelectorAll('.modal').forEach(m => {
 
 // ===== 시작 =====
 render();
+
+// 자동 동기화: 로드 시 1회 + 포커스 복귀 시 + 60초 주기 (보일 때만)
+autoFetchFromSheet();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') autoFetchFromSheet();
+});
+window.addEventListener('focus', autoFetchFromSheet);
+setInterval(() => {
+  if (document.visibilityState === 'visible') autoFetchFromSheet();
+}, 60000);
