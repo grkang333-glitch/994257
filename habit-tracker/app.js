@@ -5,6 +5,7 @@ const DEFAULT_STATE = {
   challenge: null,
   tasks: [],
   logs: {},
+  lastTouched: {}, // { [taskId]: epoch ms — 마지막 달성/실패 클릭 시각 }
   settings: { apiUrl: '', userId: '' }
 };
 
@@ -57,7 +58,7 @@ async function syncStateToSheet() {
       body: JSON.stringify({
         type: 'state',
         userId: state.settings.userId,
-        state: { challenge: state.challenge, tasks: state.tasks, logs: state.logs }
+        state: { challenge: state.challenge, tasks: state.tasks, logs: state.logs, lastTouched: state.lastTouched || {} }
       })
     });
     setSyncStatus('● 동기화됨', 'ok');
@@ -90,15 +91,17 @@ async function autoFetchFromSheet() {
     const remote = JSON.stringify({
       challenge: data.state.challenge ?? null,
       tasks: data.state.tasks ?? [],
-      logs: data.state.logs ?? {}
+      logs: data.state.logs ?? {},
+      lastTouched: data.state.lastTouched ?? {}
     });
     const local = JSON.stringify({
-      challenge: state.challenge, tasks: state.tasks, logs: state.logs
+      challenge: state.challenge, tasks: state.tasks, logs: state.logs, lastTouched: state.lastTouched || {}
     });
     if (remote === local) return;
     state.challenge = data.state.challenge ?? null;
     state.tasks = data.state.tasks ?? [];
     state.logs = data.state.logs ?? {};
+    state.lastTouched = data.state.lastTouched ?? {};
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     setSyncStatus('● 새 데이터 받음', 'ok');
     setTimeout(() => setSyncStatus(''), 2000);
@@ -118,6 +121,7 @@ async function loadStateFromSheet() {
       state.challenge = data.state.challenge ?? null;
       state.tasks = data.state.tasks ?? [];
       state.logs = data.state.logs ?? {};
+      state.lastTouched = data.state.lastTouched ?? {};
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       setSyncStatus('● 불러옴', 'ok');
       setTimeout(() => setSyncStatus(''), 2000);
@@ -240,6 +244,8 @@ function setSlot(taskId, date, slot, status) {
     state.logs[date][taskId][slot] = status;
     finalStatus = status;
   }
+  if (!state.lastTouched) state.lastTouched = {};
+  state.lastTouched[taskId] = Date.now();
   save();
   render();
   if (finalStatus !== 'cleared') {
@@ -296,6 +302,16 @@ function renderMessages() {
 
 function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+function formatLastTouched(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mm}/${dd} ${hh}:${mi}`;
+}
+
 // ===== 렌더링 =====
 function render() {
   document.getElementById('todayLabel').textContent = todayStr();
@@ -344,11 +360,13 @@ function renderTodayCheckins() {
           <button class="slot-btn fail ${status === 'fail' ? 'active' : ''}" data-task="${task.id}" data-slot="${escapeHtml(slot)}" data-status="fail">실패</button>
         </div>`;
     }).join('');
+    const lastTs = state.lastTouched?.[task.id];
+    const lastTxt = lastTs ? `최근 ${formatLastTouched(lastTs)}` : '';
     return `
       <div class="checkin-task">
         <div class="checkin-head">
           <span class="checkin-name">${escapeHtml(task.name)}</span>
-          <span class="checkin-combo">현재 ${combo}콤보</span>
+          <span class="checkin-combo">${lastTxt ? `<span class="muted small" style="margin-right:8px">${lastTxt}</span>` : ''}현재 ${combo}콤보</span>
         </div>
         <div class="slots">${slotsHtml}</div>
       </div>
@@ -372,11 +390,13 @@ function renderCombos() {
     const cur = currentCombo(task);
     const best = bestCombo(task);
     const reach = maxReachableCombo(task);
+    const lastTs = state.lastTouched?.[task.id];
+    const lastTxt = lastTs ? ` · 최근 ${formatLastTouched(lastTs)}` : '';
     return `
       <div class="combo-row">
         <div>
           <div class="name">${escapeHtml(task.name)}</div>
-          <div class="muted small">최고 ${best}콤보 · 남은 기간 최대 ${reach}콤보 가능</div>
+          <div class="muted small">최고 ${best}콤보 · 남은 기간 최대 ${reach}콤보${lastTxt}</div>
         </div>
         <div class="now">${cur}</div>
         <div class="best">콤보</div>
