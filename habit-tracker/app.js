@@ -1,3 +1,7 @@
+// ===== 백엔드 (혼자 쓰는 모드) =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbwsufuyZGFqTFJEgnrPahn2Wnkj-_RT2e1zWzMj7v5VN5mgWq31q0-OBdATfxCFfR9f_Q/exec';
+const USER_ID = 'gr';
+
 // ===== 상태 & 저장 =====
 const STORAGE_KEY = 'habit-tracker-v1';
 
@@ -5,8 +9,7 @@ const DEFAULT_STATE = {
   challenge: null,
   tasks: [],
   logs: {},
-  lastTouched: {}, // { [taskId]: epoch ms — 마지막 달성/실패 클릭 시각 }
-  settings: { apiUrl: '', userId: '' }
+  lastTouched: {}
 };
 
 let state = load();
@@ -16,9 +19,7 @@ function load() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_STATE);
     const parsed = JSON.parse(raw);
-    const merged = Object.assign(structuredClone(DEFAULT_STATE), parsed);
-    merged.settings = Object.assign({ apiUrl: '', userId: '' }, parsed.settings || {});
-    return merged;
+    return Object.assign(structuredClone(DEFAULT_STATE), parsed);
   } catch {
     return structuredClone(DEFAULT_STATE);
   }
@@ -38,26 +39,20 @@ function setSyncStatus(text, cls = '') {
   el.textContent = text;
   el.style.color = cls === 'err' ? 'var(--danger)' : cls === 'ok' ? 'var(--accent-2)' : '';
 }
-function syncReady() {
-  return !!(state.settings?.apiUrl && state.settings?.userId);
-}
 function scheduleSync() {
-  if (!syncReady()) return;
   clearTimeout(syncTimer);
   setSyncStatus('● 저장 대기…');
   syncTimer = setTimeout(syncStateToSheet, 1500);
 }
 async function syncStateToSheet() {
-  if (!syncReady()) return;
-  const url = state.settings.apiUrl;
   setSyncStatus('● 동기화 중…');
   try {
-    await fetch(url, {
+    await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         type: 'state',
-        userId: state.settings.userId,
+        userId: USER_ID,
         state: { challenge: state.challenge, tasks: state.tasks, logs: state.logs, lastTouched: state.lastTouched || {} }
       })
     });
@@ -68,24 +63,20 @@ async function syncStateToSheet() {
   }
 }
 async function logEventToSheet(ev) {
-  if (!syncReady()) return;
   try {
-    await fetch(state.settings.apiUrl, {
+    await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ type: 'event', userId: state.settings.userId, event: ev })
+      body: JSON.stringify({ type: 'event', userId: USER_ID, event: ev })
     });
   } catch {}
 }
 // 자동 폴링용 — 로컬 변경 직후 / 저장 대기 중이면 skip, 변경 없으면 무음
 async function autoFetchFromSheet() {
-  if (!syncReady()) return;
   if (syncTimer) return; // 저장 대기 중
   if (Date.now() - lastLocalChange < 3000) return; // 방금 로컬 변경
-  const url = state.settings.apiUrl;
-  const userId = state.settings.userId;
   try {
-    const res = await fetch(url + '?userId=' + encodeURIComponent(userId) + '&t=' + Date.now());
+    const res = await fetch(API_URL + '?userId=' + encodeURIComponent(USER_ID) + '&t=' + Date.now());
     const data = await res.json();
     if (!data?.ok || !data.state) return;
     const remote = JSON.stringify({
@@ -110,12 +101,9 @@ async function autoFetchFromSheet() {
 }
 
 async function loadStateFromSheet() {
-  const url = state.settings?.apiUrl;
-  const userId = state.settings?.userId;
-  if (!url || !userId) { alert('API URL과 닉네임을 모두 입력하세요.'); return; }
   setSyncStatus('● 불러오는 중…');
   try {
-    const res = await fetch(url + '?userId=' + encodeURIComponent(userId) + '&t=' + Date.now());
+    const res = await fetch(API_URL + '?userId=' + encodeURIComponent(USER_ID) + '&t=' + Date.now());
     const data = await res.json();
     if (data && data.ok && data.state) {
       state.challenge = data.state.challenge ?? null;
@@ -413,43 +401,16 @@ function openSettings() {
   document.getElementById('cfgTitle').value = state.challenge?.title || '';
   document.getElementById('cfgStart').value = state.challenge?.startDate || todayStr();
   document.getElementById('cfgDays').value = state.challenge?.days || 30;
-  document.getElementById('cfgApiUrl').value = state.settings?.apiUrl || '';
-  document.getElementById('cfgUserId').value = state.settings?.userId || '';
   settingsModal.classList.remove('hidden');
 }
-document.getElementById('saveChallenge').addEventListener('click', async () => {
+document.getElementById('saveChallenge').addEventListener('click', () => {
   const title = document.getElementById('cfgTitle').value.trim() || '나의 챌린지';
   const startDate = document.getElementById('cfgStart').value || todayStr();
   const days = Math.max(1, parseInt(document.getElementById('cfgDays').value, 10) || 30);
-  const apiUrl = document.getElementById('cfgApiUrl').value.trim();
-  const userId = document.getElementById('cfgUserId').value.trim();
-  const prevApiUrl = state.settings?.apiUrl || '';
-  const prevUserId = state.settings?.userId || '';
-  const syncIdChanged = (apiUrl !== prevApiUrl || userId !== prevUserId) && apiUrl && userId;
-  const localEmpty = !state.tasks.length && !state.challenge;
-
-  // 새 백엔드 정보 입력 + 로컬이 비어 있으면, 시트 데이터를 덮어쓰지 않도록 먼저 가져옴
-  if (syncIdChanged && localEmpty) {
-    state.settings = Object.assign({}, state.settings, { apiUrl, userId });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    settingsModal.classList.add('hidden');
-    await loadStateFromSheet();
-    return;
-  }
-
   state.challenge = { title, startDate, days };
-  state.settings = Object.assign({}, state.settings, { apiUrl, userId });
   save();
   settingsModal.classList.add('hidden');
   if (!state.tasks.length) openTasks(); else render();
-});
-document.getElementById('loadFromSheet').addEventListener('click', () => {
-  const apiUrl = document.getElementById('cfgApiUrl').value.trim();
-  const userId = document.getElementById('cfgUserId').value.trim();
-  state.settings = Object.assign({}, state.settings, { apiUrl, userId });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  if (!confirm('시트의 데이터로 현재 로컬 데이터를 덮어씁니다. 계속하시겠습니까?')) return;
-  loadStateFromSheet().then(() => settingsModal.classList.add('hidden'));
 });
 document.getElementById('resetAll').addEventListener('click', () => {
   if (!confirm('모든 챌린지, 태스크, 기록을 삭제합니다. 계속하시겠습니까?')) return;
