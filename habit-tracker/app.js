@@ -164,9 +164,20 @@ function daysElapsed() {
 }
 
 // ===== 콤보 계산 =====
-// 각 태스크의 시간순 슬롯 시퀀스를 만들고, 마지막 'fail' 이후의 연속 'ok' 개수를 콤보로 본다.
-// within-day: 매일 slots[] 순서대로 평가 (시작일부터 오늘까지)
-// across-days: slots = [완료] 한 개로 가정, 매일 한 슬롯씩
+// 슬롯 로그는 두 형태 모두 가능 (하위 호환):
+//   - 'ok' | 'fail'  (구버전)
+//   - { status: 'ok'|'fail', ts, memo }  (신버전)
+function getStatus(entry) {
+  if (entry === 'ok' || entry === 'fail') return entry;
+  if (entry && typeof entry === 'object') return entry.status || null;
+  return null;
+}
+function getEntry(entry) {
+  if (entry === 'ok' || entry === 'fail') return { status: entry, ts: 0, memo: '' };
+  if (entry && typeof entry === 'object') return { status: entry.status, ts: entry.ts || 0, memo: entry.memo || '' };
+  return null;
+}
+
 function getTaskTimeline(task) {
   if (!state.challenge) return [];
   const start = state.challenge.startDate;
@@ -174,12 +185,12 @@ function getTaskTimeline(task) {
   const totalDays = diffDays(start, today) + 1;
   if (totalDays <= 0) return [];
 
-  const timeline = []; // [{date, slot, status: 'ok'|'fail'|null}]
+  const timeline = [];
   for (let i = 0; i < totalDays; i++) {
     const date = addDays(start, i);
     const dayLog = (state.logs[date] && state.logs[date][task.id]) || {};
     for (const slot of task.slots) {
-      timeline.push({ date, slot, status: dayLog[slot] || null });
+      timeline.push({ date, slot, status: getStatus(dayLog[slot]) });
     }
   }
   return timeline;
@@ -214,22 +225,22 @@ function maxReachableCombo(task) {
   const today = todayStr();
   const todayLog = (state.logs[today] && state.logs[today][task.id]) || {};
   let todayRemaining = 0;
-  for (const s of task.slots) if (!todayLog[s]) todayRemaining++;
+  for (const s of task.slots) if (!getStatus(todayLog[s])) todayRemaining++;
   const futureDays = Math.max(0, left - 1);
   return currentCombo(task) + todayRemaining + futureDays * slotsPerDay;
 }
 
 // ===== 액션 =====
-function setSlot(taskId, date, slot, status) {
+function setSlot(taskId, date, slot, status, memo = '') {
   if (!state.logs[date]) state.logs[date] = {};
   if (!state.logs[date][taskId]) state.logs[date][taskId] = {};
-  const prev = state.logs[date][taskId][slot];
+  const prevStatus = getStatus(state.logs[date][taskId][slot]);
   let finalStatus;
-  if (prev === status) {
+  if (prevStatus === status && !memo) {
     delete state.logs[date][taskId][slot];
     finalStatus = 'cleared';
   } else {
-    state.logs[date][taskId][slot] = status;
+    state.logs[date][taskId][slot] = { status, ts: Date.now(), memo: memo || '' };
     finalStatus = status;
   }
   if (!state.lastTouched) state.lastTouched = {};
@@ -329,6 +340,24 @@ function render() {
   renderMessages();
 }
 
+// 펼친 태스크 추적
+const expandedTasks = new Set();
+
+function getTaskHistory(task) {
+  const entries = [];
+  for (const date of Object.keys(state.logs || {})) {
+    const dayLog = state.logs[date]?.[task.id];
+    if (!dayLog) continue;
+    for (const slot of Object.keys(dayLog)) {
+      const e = getEntry(dayLog[slot]);
+      if (!e || !e.status) continue;
+      entries.push({ date, slot, ...e });
+    }
+  }
+  entries.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return entries;
+}
+
 function renderTodayCheckins() {
   const el = document.getElementById('todayCheckins');
   if (!state.tasks.length) {
@@ -340,7 +369,7 @@ function renderTodayCheckins() {
     const dayLog = (state.logs[today] && state.logs[today][task.id]) || {};
     const combo = currentCombo(task);
     const slotsHtml = task.slots.map(slot => {
-      const status = dayLog[slot];
+      const status = getStatus(dayLog[slot]);
       return `
         <div class="slot">
           <span class="slot-name">${escapeHtml(slot)}</span>
@@ -350,20 +379,67 @@ function renderTodayCheckins() {
     }).join('');
     const lastTs = state.lastTouched?.[task.id];
     const lastTxt = lastTs ? `최근 ${formatLastTouched(lastTs)}` : '';
+    const isExpanded = expandedTasks.has(task.id);
+    const history = isExpanded ? getTaskHistory(task) : [];
+    const historyHtml = isExpanded ? `
+      <div class="history">
+        ${history.length === 0 ? '<div class="muted small">아직 기록 없음</div>' :
+          history.map(h => `
+            <div class="history-row ${h.status}">
+              <span class="hist-status">${h.status === 'ok' ? '✅ 달성' : '❌ 실패'}</span>
+              <span class="hist-slot muted small">${escapeHtml(h.slot)}</span>
+              <span class="hist-time muted small">${h.ts ? formatLastTouched(h.ts) : h.date}</span>
+              ${h.memo ? `<div class="hist-memo">${escapeHtml(h.memo)}</div>` : ''}
+            </div>
+          `).join('')}
+      </div>
+    ` : '';
     return `
       <div class="checkin-task">
         <div class="checkin-head">
-          <span class="checkin-name">${escapeHtml(task.name)}</span>
+          <span class="checkin-name">
+            <button class="expand-btn" data-task="${task.id}" title="기록 펼치기">${isExpanded ? '▾' : '▸'}</button>
+            ${escapeHtml(task.name)}
+            <button class="edit-task-btn ghost small" data-task="${task.id}" title="태스크 수정">✎</button>
+          </span>
           <span class="checkin-combo">${lastTxt ? `<span class="muted small" style="margin-right:8px">${lastTxt}</span>` : ''}현재 ${combo}콤보</span>
         </div>
         <div class="slots">${slotsHtml}</div>
+        <div class="memo-row">
+          <input type="text" class="memo-input" placeholder="한 줄 메모 (선택) — 입력 후 달성/실패 누르면 함께 저장" data-task="${task.id}" maxlength="200" />
+        </div>
+        ${historyHtml}
       </div>
     `;
   }).join('');
 
   el.querySelectorAll('.slot-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      setSlot(btn.dataset.task, todayStr(), btn.dataset.slot, btn.dataset.status);
+      const memoInput = el.querySelector(`.memo-input[data-task="${btn.dataset.task}"]`);
+      const memo = memoInput ? memoInput.value.trim() : '';
+      setSlot(btn.dataset.task, todayStr(), btn.dataset.slot, btn.dataset.status, memo);
+      if (memoInput) memoInput.value = '';
+    });
+  });
+  el.querySelectorAll('.expand-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.task;
+      if (expandedTasks.has(id)) expandedTasks.delete(id);
+      else expandedTasks.add(id);
+      render();
+    });
+  });
+  el.querySelectorAll('.edit-task-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openTasks();
+      // 모달 안에서 해당 태스크로 스크롤
+      setTimeout(() => {
+        const target = document.querySelector(`.task-edit input.task-name[data-id="${btn.dataset.task}"]`);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.focus();
+        }
+      }, 100);
     });
   });
 }
@@ -456,7 +532,7 @@ function renderTaskEdit() {
   wrap.innerHTML = state.tasks.map((t, idx) => `
     <div class="task-edit" data-idx="${idx}">
       <div class="row">
-        <input type="text" class="task-name" value="${escapeHtml(t.name)}" />
+        <input type="text" class="task-name" data-id="${t.id}" value="${escapeHtml(t.name)}" />
         <button class="danger ghost small" data-action="delete">삭제</button>
       </div>
       <div class="muted small">체크포인트 (시간순)</div>
