@@ -4,15 +4,25 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>콤보 챌린지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <h1>콤보 챌린지</h1>
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <span class="logo-circle"></span>
+        <span class="logo-square"></span>
+        <span class="logo-triangle"></span>
+      </span>
+      <h1>콤보 챌린지</h1>
+    </div>
     <div class="topbar-right">
       <span id="syncStatus" class="muted small"></span>
-      <span id="todayLabel" class="muted"></span>
+      <span id="todayLabel" class="muted small"></span>
       <button id="openSettings" class="ghost">설정</button>
     </div>
   </header>
