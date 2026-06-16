@@ -1,9 +1,22 @@
-// ===== 백엔드 (혼자 쓰는 모드) =====
+// ===== 모드 분기 (개인 / 업무) =====
+// URL ?mode=work 면 업무, 아니면 개인
+const MODE = (new URLSearchParams(window.location.search).get('mode') === 'work') ? 'work' : 'personal';
+const MODE_LABEL = MODE === 'work' ? 'BUSINESS' : 'PERSONAL';
+
+// ===== 백엔드 =====
 const API_URL = 'https://script.google.com/macros/s/AKfycbwsufuyZGFqTFJEgnrPahn2Wnkj-_RT2e1zWzMj7v5VN5mgWq31q0-OBdATfxCFfR9f_Q/exec';
-const USER_ID = 'gr';
+const USER_ID = MODE === 'work' ? 'gr-work' : 'gr';
 
 // ===== 상태 & 저장 =====
-const STORAGE_KEY = 'habit-tracker-v1';
+const STORAGE_KEY = MODE === 'work' ? 'habit-tracker-work-v1' : 'habit-tracker-v1';
+
+// 모드 표시 (DOM 준비된 뒤 한 번)
+document.addEventListener('DOMContentLoaded', () => {
+  const badge = document.getElementById('modeBadge');
+  if (badge) badge.textContent = MODE_LABEL;
+  document.title = MODE === 'work' ? 'Combo Challenge · Business' : 'Combo Challenge';
+  if (MODE === 'work') document.body.classList.add('mode-work');
+});
 
 const DEFAULT_STATE = {
   challenge: null,
@@ -386,9 +399,9 @@ function renderTodayCheckins() {
         ${history.length === 0 ? '<div class="muted small">아직 기록 없음</div>' :
           history.map(h => `
             <div class="history-row ${h.status}">
-              <span class="hist-status">${h.status === 'ok' ? '✅ 달성' : '❌ 실패'}</span>
-              <span class="hist-slot muted small">${escapeHtml(h.slot)}</span>
-              <span class="hist-time muted small">${h.ts ? formatLastTouched(h.ts) : h.date}</span>
+              <span class="hist-status">${h.status === 'ok' ? '달성' : '실패'}</span>
+              <span class="hist-slot">${escapeHtml(h.slot)}</span>
+              <span class="hist-time">${h.ts ? formatLastTouched(h.ts) : h.date}</span>
               ${h.memo ? `<div class="hist-memo">${escapeHtml(h.memo)}</div>` : ''}
             </div>
           `).join('')}
