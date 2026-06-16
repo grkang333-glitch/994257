@@ -10,13 +10,13 @@ const USER_ID = MODE === 'work' ? 'gr-work' : 'gr';
 // ===== 상태 & 저장 =====
 const STORAGE_KEY = MODE === 'work' ? 'habit-tracker-work-v1' : 'habit-tracker-v1';
 
-// 모드 표시 (DOM 준비된 뒤 한 번)
-document.addEventListener('DOMContentLoaded', () => {
+// 모드 표시 — app.js는 body 끝에서 로드되므로 동기적으로 실행해도 DOM 존재함
+(function applyMode() {
   const badge = document.getElementById('modeBadge');
   if (badge) badge.textContent = MODE_LABEL;
   document.title = MODE === 'work' ? 'Combo Challenge · Business' : 'Combo Challenge';
   if (MODE === 'work') document.body.classList.add('mode-work');
-});
+})();
 
 const DEFAULT_STATE = {
   challenge: null,
