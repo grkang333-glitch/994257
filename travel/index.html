@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>여행 플래너</title>
+<!-- 카톡 등 메신저 링크 미리보기(OG). Apps Script /exec에는 OG 태그를 못 심어서
+     이 랜딩이 미리보기를 담당하고, 열면 바로 앱으로 이동한다. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="✈️ 여행 플래너">
+<meta property="og:description" content="일정 짜고, 준비물 나누고, 지출 정산까지 — 링크 열고 바로 같이 편집!">
+<meta property="og:image" content="https://grkang333-glitch.github.io/994257/travel/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    background: linear-gradient(135deg, #2563eb, #1e3a8a); color: #fff; text-align: center; }
+  a { color: #bfdbfe; }
+</style>
+</head>
+<body>
+<div>
+  <h1 style="margin:0 0 8px">✈️ 여행 플래너</h1>
+  <p id="msg">앱으로 이동 중…</p>
+</div>
+<script>
+  // Apps Script 웹 앱(/exec)으로 이동. ?trip=... 파라미터 그대로 전달.
+  // ⚠️ Apps Script에서 "새 배포"를 만들면 URL이 바뀌므로 여기도 같이 고칠 것 (갱신은 "새 버전"으로 하면 안 바뀜).
+  var APP = 'https://script.google.com/macros/s/AKfycbzk-3tbcI5V5YYhsShgcb4VK6gOSpKp6baXbaMNzB_AXIJReSn56VJoypSPh7I5z_K4/exec';
+  var dest = APP + location.search;
+  document.getElementById('msg').innerHTML = '앱으로 이동 중… 안 열리면 <a href="' + dest + '">여기를 누르세요</a>.';
+  location.replace(dest);
+</script>
+<noscript><p>자동 이동이 안 되면 <a href="https://script.google.com/macros/s/AKfycbzk-3tbcI5V5YYhsShgcb4VK6gOSpKp6baXbaMNzB_AXIJReSn56VJoypSPh7I5z_K4/exec">여기를 눌러 주세요</a>.</p></noscript>
+</body>
+</html>
