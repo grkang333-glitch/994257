@@ -38,6 +38,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 12px;
+    margin-bottom: 14px;
   }
   @media (max-width: 900px) {
     .columns { grid-template-columns: 1fr; }
@@ -584,6 +585,7 @@
     }
     .panel { padding: 10px; border-radius: 8px; }
     .panel.inbox { margin-bottom: 10px; }
+    .columns { margin-bottom: 10px; }
     .panel-head h2 { font-size: 13px; }
     .add-row input { padding: 9px 10px; font-size: 14px; }
     .add-row button { padding: 9px 14px; font-size: 14px; }
@@ -637,19 +639,6 @@
   <button class="mode-tab" data-mode="organize">정리하기</button>
 </div>
 
-<div class="panel inbox" data-bucket="inbox">
-  <div class="panel-head">
-    <h2>인박스 <span class="count"></span></h2>
-    <label class="toggle-done"><input type="checkbox" data-toggle="inbox"> 완료 접기</label>
-  </div>
-  <div class="add-row">
-    <input id="add-input" placeholder="할 일을 입력하고 Enter">
-    <button id="add-btn">추가</button>
-  </div>
-  <div class="dump-hint">머릿속에 떠오르는 거 뭐든 적어. 분류·기한·조건은 나중에 [정리하기]에서.</div>
-  <div class="list"></div>
-</div>
-
 <div class="columns">
   <div class="panel" data-bucket="now">
     <div class="panel-head">
@@ -680,6 +669,19 @@
     </div>
     <div class="list"></div>
   </div>
+</div>
+
+<div class="panel inbox" data-bucket="inbox">
+  <div class="panel-head">
+    <h2>인박스 <span class="count"></span></h2>
+    <label class="toggle-done"><input type="checkbox" data-toggle="inbox"> 완료 접기</label>
+  </div>
+  <div class="add-row">
+    <input id="add-input" placeholder="할 일을 입력하고 Enter">
+    <button id="add-btn">추가</button>
+  </div>
+  <div class="dump-hint">머릿속에 떠오르는 거 뭐든 적어. 분류·기한·조건은 나중에 [정리하기]에서.</div>
+  <div class="list"></div>
 </div>
 
 <div class="footer">
