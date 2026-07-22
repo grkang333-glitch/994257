@@ -801,6 +801,7 @@
   let saveTimer = null;
   let inFlight = false;
   let queuedSave = false;
+  let mutationSeq = 0;
   const expandedConditionAddRows = new Set();
 
   function load() {
@@ -878,6 +879,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
   function save() {
+    mutationSeq++;
     saveLocal();
     scheduleRemoteSave();
   }
@@ -994,6 +996,14 @@
   async function loadFromRemote(silent = false) {
     if (!settings.apiUrl) return null;
     if (inFlight) return null;
+    if (saveTimer) {
+      // 저장 대기 중인 로컬 변경이 최신이므로, 서버에서 받아오는 대신 즉시 밀어 올린다
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      saveToRemote();
+      return null;
+    }
+    const seqAtStart = mutationSeq;
     inFlight = true;
     if (!silent) setSyncStatus("loading");
     try {
@@ -1001,6 +1011,8 @@
       const res = await fetch(settings.apiUrl + sep + "action=list");
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "load failed");
+      // 응답을 기다리는 동안 로컬이 바뀌었으면 서버 데이터(더 오래됨)로 덮어쓰지 않는다
+      if (mutationSeq !== seqAtStart) return null;
       const items = itemsFromRemote(data.items || []);
       state.items = items;
       saveLocal();
@@ -1013,6 +1025,7 @@
       return null;
     } finally {
       inFlight = false;
+      if (queuedSave) { queuedSave = false; scheduleRemoteSave(); }
     }
   }
 
